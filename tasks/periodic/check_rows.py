@@ -18,7 +18,7 @@ class CheckRows:
 
     def __init__(self, app):
         self.app = app
-        self.limit = 200
+        self.limit = 20000
         self.worker_name = 'CheckRows'
 
     async def run(self, payload: dict) -> None:
