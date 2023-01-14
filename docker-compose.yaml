@@ -1,0 +1,185 @@
+version: '3.5'
+
+services:
+
+  postgres:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_NAME: ${POSTGRES_NAME}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - 5432:${POSTGRES_PORT}
+    volumes:
+      - "${PWD}/migrations/csv/bars_1.csv:/tmp/bars_1.csv"
+      - "${PWD}/migrations/csv/bars_1.csv:/tmp/bars_2.csv"
+
+  rabbitmq:
+    image: 'bitnami/rabbitmq:latest'
+    restart: always
+    environment:
+      RABBITMQ_HOST: ${RABBIT_MQ_HOST}
+      RABBITMQ_USERNAME: ${RABBIT_MQ_USER}
+      RABBITMQ_PASSWORD: ${RABBIT_MQ_PASSWORD}
+      RABBITMQ_PORT: ${RABBIT_MQ_PORT}
+    ports:
+      - 5672:5672
+      - 15672:15672
+
+  migrate:
+    build:
+      context: .
+      dockerfile: "dockerfiles/Dockerfile.migrations"
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - rabbitmq
+    command:
+      - '/bin/sh'
+      - '-c'
+      - '/bin/sleep 5 && python migrate.py'
+
+  get_percent:
+    build:
+      context: .
+      dockerfile: "dockerfiles/Dockerfile.workers"
+    env_file:
+      - .env
+    depends_on:
+      - migrate
+    command:
+      - '/bin/sh'
+      - '-c'
+      - '/bin/sleep 10 && python consumer.py -q test_case.events.get_percent'
+
+  calculate_average_dollar_volume:
+    build:
+      context: .
+      dockerfile: "dockerfiles/Dockerfile.workers"
+    env_file:
+      - .env
+    depends_on:
+      - migrate
+    command:
+      - '/bin/sh'
+      - '-c'
+      - '/bin/sleep 10 && python consumer.py -q test_case.events.calculate_average_dollar_volume'
+
+  calculate_average_percent:
+    build:
+      context: .
+      dockerfile: "dockerfiles/Dockerfile.workers"
+    env_file:
+      - .env
+    depends_on:
+      - migrate
+    command:
+      - '/bin/sh'
+      - '-c'
+      - '/bin/sleep 10 && python consumer.py -q test_case.events.calculate_average_percent'
+
+  rank_stocks_by_positive_volume:
+    build:
+      context: .
+      dockerfile: "dockerfiles/Dockerfile.workers"
+    env_file:
+      - .env
+#    depends_on:
+#      - migrate
+    command:
+      - '/bin/sh'
+      - '-c'
+      - '/bin/sleep 10 && python consumer.py -q test_case.events.rank_stocks_by_positive_volume'
+
+  insert_to_error_logs:
+    build:
+      context: .
+      dockerfile: "dockerfiles/Dockerfile.workers"
+    env_file:
+      - .env
+    depends_on:
+      - migrate
+    command:
+      - '/bin/sh'
+      - '-c'
+      - '/bin/sleep 10 && python consumer.py -q test_case.events.insert_to_error_logs'
+
+  insert_to_bars_1:
+    build:
+      context: .
+      dockerfile: "dockerfiles/Dockerfile.workers"
+    env_file:
+      - .env
+    depends_on:
+      - migrate
+    command:
+      - '/bin/sh'
+      - '-c'
+      - '/bin/sleep 10 && python consumer.py -q test_case.events.insert_to_bars_1'
+
+  check_rows:
+    build:
+      context: .
+      dockerfile: "dockerfiles/Dockerfile.workers"
+    env_file:
+      - .env
+    depends_on:
+      - migrate
+    command:
+      - '/bin/sh'
+      - '-c'
+      - '/bin/sleep 10 && python consumer.py -q test_case.events.check_rows'
+
+  check_rows_helper:
+    build:
+      context: .
+      dockerfile: "dockerfiles/Dockerfile.workers"
+    env_file:
+      - .env
+    depends_on:
+      - migrate
+    command:
+      - '/bin/sh'
+      - '-c'
+      - '/bin/sleep 10 && python consumer.py -q test_case.events.check_rows_helper'
+
+  producer:
+    build:
+      context: .
+      dockerfile: "dockerfiles/Dockerfile.producer"
+    env_file:
+      - .env
+#    depends_on:
+#      - migrate
+#    command: "python3 producer.py -tt events"
+
+  websocket:
+    build:
+      context: .
+      dockerfile: "dockerfiles/Dockerfile.websocket"
+    env_file:
+      - .env
+    ports:
+      - ${WEBSOCKET_PORT}:${WEBSOCKET_PORT}
+    command: 'python websocket_server.py'
+
+  websocket_test:
+    build:
+      context: .
+      dockerfile: "dockerfiles/Dockerfile.websocket"
+    env_file:
+      - .env
+    depends_on:
+      - websocket
+    command:
+      - '/bin/sh'
+      - '-c'
+      - '/bin/sleep 10 &&python3 -m unittest tests_websocket.TestWebsocket'
+
+
+
+
+
+
