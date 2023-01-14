@@ -1,0 +1,10 @@
+FROM python:3.9
+
+RUN mkdir websocket_server
+WORKDIR ./websocket_server
+COPY /websocket_server .
+COPY /test/tests_websocket.py .
+COPY config.py .
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+ENV PYTHONPATH="/:$PYTHONPATH"

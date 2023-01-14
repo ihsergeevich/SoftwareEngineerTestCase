@@ -1,0 +1,9 @@
+FROM python:3.9
+RUN apt-get update && apt-get -y install cron vim
+RUN mkdir producer
+WORKDIR ./producer
+COPY . .
+RUN pip3 install -r requirements.txt
+RUN crontab -l | { cat; echo "* * * * * /usr/local/bin/python3 /producer/producer.py -tt periodic"; } | crontab -
+RUN crontab -l | { cat; echo "* * * * * sleep 30; /usr/local/bin/python3 /producer/producer.py -tt periodic"; } | crontab -
+CMD ["cron", "-f"]
